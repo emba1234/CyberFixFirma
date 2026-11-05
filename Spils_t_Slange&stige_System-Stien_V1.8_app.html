@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System-Stien: Den Erhvervsinformatiske Rejse</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    body { font-family: 'Inter', sans-serif; transition: background-color 0.3s ease, color 0.3s ease; }
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 12px;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(255, 255, 255, 0.9); }
+      50% { transform: scale(1.35); box-shadow: 0 0 18px rgba(255, 255, 255, 1); }
+    }
+    .game-token {
+      animation: pulse-glow 1.4s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body id="pageBody" class="bg-slate-900 text-slate-100 min-h-screen pb-12">
+
+  <!-- Header -->
+  <header id="mainHeader" class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-20 shadow-lg transition-colors">
+    <div class="max-w-5xl mx-auto flex justify-between items-center flex-wrap gap-3">
+      <div>
+        <h1 class="text-xl font-bold text-indigo-400">🎲 System-Stien</h1>
+        <p id="activeCaseHeader" class="text-xs text-slate-400">Vælg case på startskærmen</p>
+      </div>
+
+      <div class="flex items-center gap-3 flex-wrap">
+        <!-- Tema Vælger -->
+        <div class="bg-slate-900/60 border border-slate-700 p-1 rounded-lg flex items-center gap-1 text-xs">
+          <button type="button" onclick="setTheme('light', event)" class="theme-btn px-2.5 py-1 rounded-md text-slate-300 hover:bg-slate-700 transition cursor-pointer">☀️ Lys</button>
+          <button type="button" onclick="setTheme('dark', event)" class="theme-btn px-2.5 py-1 rounded-md bg-indigo-600 text-white font-semibold transition cursor-pointer">🌙 Mørkt</button>
+          <button type="button" onclick="setTheme('gray', event)" class="theme-btn px-2.5 py-1 rounded-md text-slate-300 hover:bg-slate-700 transition cursor-pointer">🔘 Grå</button>
+        </div>
+
+        <button type="button" onclick="resetGame()" class="bg-rose-900/40 hover:bg-rose-900/70 text-rose-300 border border-rose-700/50 text-xs px-3 py-2 rounded-lg transition font-semibold cursor-pointer">
+          🔄 Nulstil Spil
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto p-4 space-y-6">
+
+    <!-- SETUP SCREEN -->
+    <section id="setupScreen" class="bg-slate-800 rounded-2xl p-6 border border-slate-700 space-y-6 shadow-xl transition-colors">
+      <div class="text-center space-y-2">
+        <h2 class="text-2xl font-bold">Velkommen til System-Stien</h2>
+        <p class="text-slate-300 max-w-lg mx-auto text-sm">
+          Vælg en virksomhedscase og derefter antal konsulenthold for at starte spillet.
+        </p>
+      </div>
+
+      <!-- Case Selection -->
+      <div class="space-y-3">
+        <label class="block text-xs font-bold uppercase tracking-wider text-indigo-400">1. Vælg Virksomhedscase:</label>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <button type="button" onclick="selectCase('sportshop')" id="case-sportshop" class="case-card text-left p-4 rounded-xl border-2 border-indigo-500 bg-slate-900/95 text-white cursor-pointer transition shadow-md w-full">
+            <h4 class="font-bold text-sm text-indigo-300">🛍️ SportShop A/S</h4>
+            <p class="text-xs text-slate-300 mt-1">E-handelsordre, lagerstyring og automatisk fragtudskrift.</p>
+          </button>
+          <button type="button" onclick="selectCase('coffee')" id="case-coffee" class="case-card text-left p-4 rounded-xl border-2 border-slate-700 bg-slate-900/40 text-white cursor-pointer transition shadow-md w-full">
+            <h4 class="font-bold text-sm text-indigo-300">☕ Espresso Express</h4>
+            <p class="text-xs text-slate-300 mt-1">Mobil kaffebestilling, loyalitets-points og barista-køstyring.</p>
+          </button>
+          <button type="button" onclick="selectCase('fitness')" id="case-fitness" class="case-card text-left p-4 rounded-xl border-2 border-slate-700 bg-slate-900/40 text-white cursor-pointer transition shadow-md w-full">
+            <h4 class="font-bold text-sm text-indigo-300">🏋️ FitLife Gym</h4>
+            <p class="text-xs text-slate-300 mt-1">Automatisk medlemsoprettelse, QR-adgang og holdbooking.</p>
+          </button>
+          <button type="button" onclick="selectCase('clinic')" id="case-clinic" class="case-card text-left p-4 rounded-xl border-2 border-slate-700 bg-slate-900/40 text-white cursor-pointer transition shadow-md w-full">
+            <h4 class="font-bold text-sm text-indigo-300">🏥 MedCare Klinikken</h4>
+            <p class="text-xs text-slate-300 mt-1">Online lægebooking, SMS-påmindelser og GDPR-sikkerhed.</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- Team Selection -->
+      <div class="space-y-3 text-center pt-2">
+        <label class="block text-xs font-bold uppercase tracking-wider text-indigo-400">2. Vælg Antal Konsulenthold (Starter spillet):</label>
+        <div class="flex justify-center gap-4 flex-wrap">
+          <button type="button" onclick="startGame(1)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl font-semibold transition shadow-lg cursor-pointer">1 Hold</button>
+          <button type="button" onclick="startGame(2)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl font-semibold transition shadow-lg cursor-pointer">2 Hold</button>
+          <button type="button" onclick="startGame(3)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl font-semibold transition shadow-lg cursor-pointer">3 Hold</button>
+          <button type="button" onclick="startGame(4)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl font-semibold transition shadow-lg cursor-pointer">4 Hold</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- GAME BOARD SCREEN -->
+    <section id="gameScreen" class="hidden space-y-6">
+      
+      <div id="controlPanel" class="bg-slate-800 rounded-xl p-4 border border-slate-700 flex flex-wrap justify-between items-center gap-4 shadow-md transition-colors">
+        <div class="flex items-center gap-3">
+          <div id="turnBadge" class="w-4 h-4 rounded-full bg-emerald-500"></div>
+          <div>
+            <span class="text-xs opacity-75 block uppercase font-bold tracking-wider">Aktiv Tur</span>
+            <span id="turnTitle" class="font-bold text-lg">Hold 1</span>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/80 px-4 py-2 rounded-xl border border-indigo-500/50 flex items-center gap-2">
+          <span class="text-xs opacity-75">Sidste kast:</span>
+          <span id="diceResultText" class="text-xl font-black text-amber-400">🎲 -</span>
+        </div>
+
+        <div class="flex gap-2">
+          <button type="button" onclick="rotateRoles()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-2 rounded-lg border border-slate-600 cursor-pointer">🔄 Roter Roller</button>
+          <button type="button" id="diceBtn" onclick="rollDice()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2 rounded-lg shadow-md transition cursor-pointer">🎲 Slå Terning</button>
+        </div>
+      </div>
+
+      <div id="roleDisplay" class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs"></div>
+
+      <div id="board" class="board-grid bg-slate-950 p-3 rounded-2xl border border-slate-800 shadow-2xl transition-colors"></div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: TASK & TIMER -->
+  <div id="taskModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div id="modalBox" class="bg-slate-800 rounded-2xl max-w-lg w-full p-6 border border-slate-700 space-y-4 shadow-2xl relative transition-colors">
+      
+      <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+        <div>
+          <span id="modalFieldNum" class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Felt 1</span>
+          <h3 id="modalTitle" class="text-lg font-bold">Udfordring</h3>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <div id="modalDiceBadge" class="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-xl text-xs font-black">
+            🎲 Slag: 4
+          </div>
+          <div id="timerDisplay" class="bg-slate-900 text-emerald-400 border border-emerald-500/40 px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1">
+            ⏱️ 03:00
+          </div>
+        </div>
+      </div>
+      
+      <div class="space-y-3">
+        <div id="modalDescBox" class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-700">
+          <span class="text-[10px] uppercase font-bold text-indigo-400 block mb-1">📝 Opgave til holdet:</span>
+          <p id="modalDesc" class="text-xs leading-relaxed font-medium"></p>
+        </div>
+
+        <div id="modalExBox" class="bg-indigo-950/40 p-3.5 rounded-xl border border-indigo-800/50">
+          <span class="text-[10px] uppercase font-bold text-indigo-300 block mb-1">💡 Diskussions-retning (Ikke et facit):</span>
+          <p id="modalExample" class="text-indigo-200 text-xs italic leading-relaxed"></p>
+        </div>
+      </div>
+
+      <div id="modalRuleBox" class="bg-slate-900/60 border border-slate-700/80 rounded-xl p-3 space-y-1">
+        <h4 class="text-[10px] font-bold opacity-80 uppercase tracking-wider">
+          🛡️ Modstandernes Critical Friends Tjekliste:
+        </h4>
+        <p id="modalRuleHint" class="text-[11px] opacity-90">Når uret rinder ud: Kan holdet begrunde deres løsning fagligt uden logiske bugs?</p>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="resolveTask(false)" id="btnFail" class="flex-1 bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-bold py-3 rounded-xl transition cursor-pointer">
+          ❌ Underkendt
+        </button>
+        <button type="button" onclick="resolveTask(true)" id="btnPass" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-3 rounded-xl transition cursor-pointer">
+          ✅ Godkendt (Ryk videre)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let audioCtx = null;
+    function getAudioContext() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function playClickSound() {
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(300, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.05);
+      } catch(e){}
+    }
+
+    function playTickSound() {
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        gain.gain.setValueAtTime(0.03, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.03);
+      } catch(e){}
+    }
+
+    let currentTheme = 'dark';
+    function setTheme(theme, event) {
+      playClickSound();
+      currentTheme = theme;
+      const body = document.body;
+      const header = document.getElementById('mainHeader');
+      const setupScreen = document.getElementById('setupScreen');
+      const controlPanel = document.getElementById('controlPanel');
+      const board = document.getElementById('board');
+      const modalBox = document.getElementById('modalBox');
+      const themeButtons = document.querySelectorAll('.theme-btn');
+
+      themeButtons.forEach(btn => {
+        btn.className = "theme-btn px-2.5 py-1 rounded-md text-slate-300 hover:bg-slate-700 transition cursor-pointer";
+      });
+      if(event && event.currentTarget) {
+        event.currentTarget.className = "theme-btn px-2.5 py-1 rounded-md bg-indigo-600 text-white font-semibold transition cursor-pointer";
+      }
+
+      if (theme === 'light') {
+        body.className = "bg-slate-100 text-slate-900 min-h-screen pb-12 transition-colors duration-300";
+        header.className = "bg-white border-b border-slate-200 p-4 sticky top-0 z-20 shadow-sm transition-colors";
+        setupScreen.className = "bg-white rounded-2xl p-6 border border-slate-200 space-y-6 shadow-lg transition-colors text-slate-800";
+        if(controlPanel) controlPanel.className = "bg-white rounded-xl p-4 border border-slate-200 flex flex-wrap justify-between items-center gap-4 shadow-md transition-colors text-slate-800";
+        if(board) board.className = "board-grid bg-slate-200 p-3 rounded-2xl border border-slate-300 shadow-xl transition-colors";
+        if(modalBox) modalBox.className = "bg-white rounded-2xl max-w-lg w-full p-6 border border-slate-200 space-y-4 shadow-2xl relative transition-colors text-slate-800";
+      } else if (theme === 'dark') {
+        body.className = "bg-slate-900 text-slate-100 min-h-screen pb-12 transition-colors duration-300";
+        header.className = "bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-20 shadow-lg transition-colors";
+        setupScreen.className = "bg-slate-800 rounded-2xl p-6 border border-slate-700 space-y-6 shadow-xl transition-colors text-slate-100";
+        if(controlPanel) controlPanel.className = "bg-slate-800 rounded-xl p-4 border border-slate-700 flex flex-wrap justify-between items-center gap-4 shadow-md transition-colors text-slate-100";
+        if(board) board.className = "board-grid bg-slate-950 p-3 rounded-2xl border border-slate-800 shadow-2xl transition-colors";
+        if(modalBox) modalBox.className = "bg-slate-800 rounded-2xl max-w-lg w-full p-6 border border-slate-700 space-y-4 shadow-2xl relative transition-colors text-slate-100";
+      } else if (theme === 'gray') {
+        body.className = "bg-zinc-900 text-zinc-100 min-h-screen pb-12 transition-colors duration-300";
+        header.className = "bg-zinc-800 border-b border-zinc-700 p-4 sticky top-0 z-20 shadow-lg transition-colors";
+        setupScreen.className = "bg-zinc-800 rounded-2xl p-6 border border-zinc-700 space-y-6 shadow-xl transition-colors text-zinc-100";
+        if(controlPanel) controlPanel.className = "bg-zinc-800 rounded-xl p-4 border border-zinc-700 flex flex-wrap justify-between items-center gap-4 shadow-md transition-colors text-zinc-100";
+        if(board) board.className = "board-grid bg-zinc-950 p-3 rounded-2xl border border-zinc-800 shadow-2xl transition-colors";
+        if(modalBox) modalBox.className = "bg-zinc-800 rounded-2xl max-w-lg w-full p-6 border border-zinc-700 space-y-4 shadow-2xl relative transition-colors text-zinc-100";
+      }
+      
+      if(activeTeams.length > 0) {
+        renderBoard();
+        updateTurnUI();
+      }
+    }
+
+    const boardTitles = {
+      sportshop: {
+        1: { title: "Start: Manuel Fejl", badge: "Deko" },
+        2: { title: "Log-Analyse", badge: "Møns" },
+        3: { title: "Databasemodel", badge: "Abst" },
+        4: { title: "Dynamisk Rabat", badge: "Algo" },
+        5: { title: "GDPR-Struktur", badge: "Deko" },
+        6: { title: "CRM-Adfærd", badge: "Møns" },
+        7: { title: "ER-Modellering", badge: "Abst" },
+        8: { title: "Genbestilling", badge: "Algo" },
+        9: { title: "Cloud Migration", badge: "Deko" },
+        10: { title: "Cyber-Mønstre", badge: "Møns" },
+        11: { title: "Ledelses-Dashboard", badge: "Abst" },
+        12: { title: "Kredit-Crash", badge: "Algo" },
+        13: { title: "Support-Flaskehals", badge: "Deko" },
+        14: { title: "Trafik-Mønstre", badge: "Møns" },
+        15: { title: "Systemarkitektur", badge: "Abst" },
+        16: { title: "MÅL: ERP-Workflow", badge: "Algo" }
+      },
+      coffee: {
+        1: { title: "Start: Morgenkø", badge: "Deko" },
+        2: { title: "App-Data", badge: "Møns" },
+        3: { title: "Kø-Logik", badge: "Abst" },
+        4: { title: "Bestillings-Flow", badge: "Algo" },
+        5: { title: "Mælke-Lager", badge: "Deko" },
+        6: { title: "Peak-Tider", badge: "Møns" },
+        7: { title: "Barista-UI", badge: "Abst" },
+        8: { title: "Loyalitets-Kort", badge: "Algo" },
+        9: { title: "Kæde-Sync", badge: "Deko" },
+        10: { title: "Bestillingsmønster", badge: "Møns" },
+        11: { title: "Betalingsgateway", badge: "Abst" },
+        12: { title: "Automatisk Bon", badge: "Algo" },
+        13: { title: "Wi-Fi Backup", badge: "Deko" },
+        14: { title: "Multi-Butik API", badge: "Møns" },
+        15: { title: "Kæde-Arkitektur", badge: "Abst" },
+        16: { title: "MÅL: Kæde-System", badge: "Algo" }
+      },
+      fitness: {
+        1: { title: "Start: Svingdør-Kø", badge: "Deko" },
+        2: { title: "QR-Data", badge: "Møns" },
+        3: { title: "Adgangs-Logik", badge: "Abst" },
+        4: { title: "Hold-Booking", badge: "Algo" },
+        5: { title: "Medlems-Status", badge: "Deko" },
+        6: { title: "Trænings-Vaner", badge: "Møns" },
+        7: { title: "Booking-Portal", badge: "Abst" },
+        8: { title: "No-Show Regel", badge: "Algo" },
+        9: { title: "24/7 Server", badge: "Deko" },
+        10: { title: "Peak-Belastning", badge: "Møns" },
+        11: { title: "GDPR & Sundhed", badge: "Abst" },
+        12: { title: "Svingdør Caching", badge: "Algo" },
+        13: { title: "Videoovervågning", badge: "Deko" },
+        14: { title: "Multi-Center Sync", badge: "Møns" },
+        15: { title: "Ubemandet Sikkerhed", badge: "Abst" },
+        16: { title: "MÅL: 24/7 Center", badge: "Algo" }
+      },
+      clinic: {
+        1: { title: "Start: Telefonkø", badge: "Deko" },
+        2: { title: "CPR & Data", badge: "Møns" },
+        3: { title: "Tidsbestilling", badge: "Abst" },
+        4: { title: "Akut-Algoritme", badge: "Algo" },
+        5: { title: "Journal-Sync", badge: "Deko" },
+        6: { title: "Patient-Flow", badge: "Møns" },
+        7: { title: "Senior-Portalen", badge: "Abst" },
+        8: { title: "SMS-Automation", badge: "Algo" },
+        9: { title: "GDPR Audit Log", badge: "Deko" },
+        10: { title: "Udeblivelses-Data", badge: "Møns" },
+        11: { title: "Adgangskontrol", badge: "Abst" },
+        12: { title: "Læge-Sygemelding", badge: "Algo" },
+        13: { title: "Backup Rutine", badge: "Deko" },
+        14: { title: "WebRTC Video", badge: "Møns" },
+        15: { title: "Region-Godkendelse", badge: "Abst" },
+        16: { title: "MÅL: Sikker Klinik", badge: "Algo" }
+      }
+    };
+
+    const casesBank = {
+      sportshop: {
+        name: "SportShop A/S (E-handel)",
+        desc: "Case: SportShop A/S (Ordre & Lager)",
+        start: { title: "Start: Manuel Fejl", desc: "Identificer den primære flaskehals i SportShops nuværende manuelle ordre-flow.", ex: "Retning: Hvor mange gange tastes samme data manuelt ind af medarbejdere?" },
+        goal: { title: "🏆 Mål: Fuldt Automatiseret ERP", desc: "Præsenter den samlede digitale arkitektur og det optimerede ordreflow for SportShop A/S.", ex: "Vinderfelt: Gennemgå jeres samlede systemmodel for modstanderne." },
+        ladders: [
+          { title: "🪜 Stige: Model-Gennembrud", desc: "I har lavet en genial dekomponering af lagerprocessen! Begrund hvorfor det sparer tid.", ex: "Retning: Forklar modstanderne hvilken flaskehals I fjernede." },
+          { title: "🪜 Stige: API-Succes", desc: "I har oprettet en automatisk API-forbindelse til fragtfirmaet! Begrund værdien.", ex: "Retning: Hvorfor er automatiske API'er bedre end manuelle mails?" },
+          { title: "🪜 Stige: Direktionens Ros", desc: "Direktionen elsker jeres løsning og frigiver budget! Begrund jeres arkitektur.", ex: "Retning: Giv det sidste stærke argument til modstanderne." }
+        ],
+        snakes: [
+          { title: "🐍 Slange: Databug Udfordring", desc: "⚠️ Systemfejl! Lagersaldoen stemmer ikke, og varen er udsolgt. Løs databuggen for at AFVÆRGE slangen og blive stående!", ex: "Retning: Forklar modstanderne, hvordan I vil sikre synkronisering i dataindsamlingen." },
+          { title: "🐍 Slange: Bruger-Modstand", desc: "⚠️ Systemfejl! Medarbejderne nægter at bruge systemet. Løs brugerflade-problemet for at AFVÆRGE slangen og blive stående!", ex: "Retning: Hvilken abstraktion eller simplificering vil I tilføje for at redde systemet?" },
+          { title: "🐍 Slange: Black Friday Crash", desc: "⚠️ Systemnedbrud! Webshoppen crashede under spidsbelastning. Forklar fejlen for at AFVÆRGE slangen og blive stående!", ex: "Retning: Hvordan vil I optimere algoritme-kapaciteten fremadrettet?" }
+        ],
+        normalPool: [
+          { title: "Dataindsamling", desc: "Bestem hvilke mindste-krav af data systemet behøver for at godkende en skobestilling.", ex: "Retning: Hvilke felter er absolut nødvendige for levering og betaling?" },
+          { title: "Dekomponering", desc: "Bryd SportShops samlede salgsproces ned i 3 mindre, uafhængige delprocesser.", ex: "Retning: F.eks. betalingsvalidering, lager-pluk og fragtlabel-print." },
+          { title: "Abstraktion", desc: "Hvilke unødvendige detaljer skal systemet udelade for at simplificere ekspeditionen?", ex: "Retning: Hvad er helt ligegyldigt for at få sendt pakken af sted?" },
+          { title: "Interface Design", desc: "Design skærm-layoutet for lagerarbejderen, så plukfejl undgås.", ex: "Retning: Fokusér på visuel hierarki og kæmpe skostørrelse-indikation." },
+          { title: "Algoritme-design", desc: "Opsæt en logisk regel (IF/THEN) for hvornår kunden udløser fri fragt.", ex: "Retning: Betingelse (Ordresum > X DKK) -> Handling (Fragt = 0 DKK)." },
+          { title: "Sikkerhedsaudit", desc: "Hvordan sikrer I overholdelse af GDPR og beskyttelse af kundeadresser?", ex: "Retning: Tænk på adgangsbegrænsning og automatiske slettefrister." },
+          { title: "Test & Fejlretning", desc: "Hvordan håndterer systemet hvis kunden indtaster et forkert postnummer?", ex: "Retning: Beskriv fejlmelding og spærring før betaling." },
+          { title: "Skaleringsanalyse", desc: "Hvordan kan systemet udvides til at håndtere tyske og svenske kunder?", ex: "Retning: Hvilke parametre i databasen skal gøres fleksible?" }
+        ]
+      },
+      coffee: {
+        name: "Espresso Express (Café)",
+        desc: "Case: Espresso Express (App & Kø-optimering)",
+        start: { title: "Start: Kø-flaskehals", desc: "Hvorfor opstår der lange ventetider i morgentrafikken hos Espresso Express?", ex: "Retning: Hvor opstår forsinkelsen – ved betalingen eller ved espresso-maskinen?" },
+        goal: { title: "🏆 Mål: Fuldt Optim Kæde-System", desc: "Præsenter den samlede app- og køarkitektur for Espresso Express.", ex: "Vinderfelt: Vis det samlede systemoverblik." },
+        ladders: [
+          { title: "🪜 Stige: Hurtigt Flow", desc: "I har optimeret app-flowet! Begrund forbedringen for at rykke frem.", ex: "Retning: Forklar hvorfor ventetiden faldt for baristaen." },
+          { title: "🪜 Stige: System-Integration", desc: "POS-systemet taler nu sammen med kaffemaskinen! Begrund værdien.", ex: "Retning: Hvad betød integrationen for hastigheden?" },
+          { title: "🪜 Stige: Kæde-Succes", desc: "Direktionen ruller appen ud nationalt! Begrund skalerbarheden.", ex: "Retning: Giv modstanderne jeres stærkeste argument." }
+        ],
+        snakes: [
+          { title: "🐍 Slange: Bestillings-Bug", desc: "⚠️ Systemfejl! Appen sendte forkerte mælke-bestillinger videre. Løs buggen for at AFVÆRGE slangen!", ex: "Retning: Hvad skal ændres i dataindsamlingen for at undgå fejlen?" },
+          { title: "🐍 Slange: Maskin-Nedbrud", desc: "⚠️ Systemfejl! Espresso-maskinens skærm frøs fast. Løs logik-fejlen for at AFVÆRGE slangen!", ex: "Retning: Hvordan undgår I, at skærmen overbelastes af ordrer?" },
+          { title: "🐍 Slange: Netværksfejl", desc: "⚠️ Systemfejl! Wi-Fi faldt ud i caféen. Beskriv offline-løsningen for at AFVÆRGE slangen!", ex: "Retning: Hvordan skal appen håndtere manglende dækning?" }
+        ],
+        normalPool: [
+          { title: "App-Dataindsamling", desc: "Hvilke 3 oplysninger skal mobil-appen opsamle ved en kaffebestilling?", ex: "Retning: F.eks. drikkevare-type, mælketype og afhentningstidspunkt." },
+          { title: "Dekomponering", desc: "Opdel bestilling og brygning af kaffe i 3 uafhængige del-trin.", ex: "Retning: F.eks. Mobil-betaling -> Barista-bon udskrivning -> Afhentnings-display." },
+          { title: "Abstraktion", desc: "Hvad behøver baristaen IKKE at vide om kunden for at brygge kaffen?", ex: "Retning: Skær uvæsentlig historik fra skærmen." },
+          { title: "Barista Display", desc: "Design skærmen ved kaffemaskinen, så baristaen hurtigt kan se næste ordre.", ex: "Retning: Farvekoder for komælk vs. havremælk." },
+          { title: "Loyalitets-Algoritme", desc: "Opsæt reglen (IF/THEN) for hvornår kunden optjener en gratis stempelkaffe.", ex: "Retning: IF (Antal køb == 10) THEN (Næste kaffe = Free)." },
+          { title: "Betalingssikkerhed", desc: "Hvordan beskyttes kundens MobilePay- og kortdata i appen?", ex: "Retning: Tokenisering og 3D-Secure validering." },
+          { title: "Fejltest", desc: "Hvad sker der i systemet, hvis caféen løber tør for havremælk?", ex: "Retning: Hvordan deaktiveres muligheden i appen i realtid?" },
+          { title: "Skalering", desc: "Hvordan udvides appen til at betjene 50 forskellige kaffebarer i kæden?", ex: "Retning: Central database med lokale butiks-ID'er." }
+        ]
+      },
+      fitness: {
+        name: "FitLife Gym (Træningscenter)",
+        desc: "Case: FitLife Gym (QR-Adgang & Booking)",
+        start: { title: "Start: Adgangs-kaos", desc: "Hvorfor opstår der kø ved FitLifes manuelle svingdør i spidsbelastningen?", ex: "Retning: Manglende automatisk verifikation af aktive medlemskaber." },
+        goal: { title: "🏆 Mål: Fuldt Automatiseret Center", desc: "Præsenter den samlede 24/7 medlems- og adgangsløsning.", ex: "Vinderfelt: Gennemgå det samlede setup." },
+        ladders: [
+          { title: "🪜 Stige: Lyn-Scanning", desc: "Svingdøren reagerer prompte! Begrund QR-løsningen for at rykke frem.", ex: "Retning: Hvorfor var denne procesopdeling så effektiv?" },
+          { title: "🪜 Stige: App-Integration", desc: "Booking og svingdør synkroniserer fejlfrit! Begrund integrationen.", ex: "Retning: Forklar fordelen ved samkøring af data." },
+          { title: "🪜 Stige: Koncept-Godkendelse", desc: "Bestyrelsen godkender 24/7-udvidelsen! Begrund sikkerheden.", ex: "Retning: Giv det afsluttende argument." }
+        ],
+        snakes: [
+          { title: "🐍 Slange: Dørlås-Bug", desc: "⚠️ Systemfejl! Svingdøren lukker folk ind uden aktivt medlemskab. Løs valideringen for at AFVÆRGE slangen!", ex: "Retning: Hvilken datacheck manglede ved døren?" },
+          { title: "🐍 Slange: Medlemsprotest", desc: "⚠️ Systemfejl! Medlemmerne forstår ikke bookingreglerne. Løs UI-abstraktionen for at AFVÆRGE slangen!", ex: "Retning: Hvordan simplificerer I reglerne på skærmen?" },
+          { title: "🐍 Slange: Server-Nedbrud", desc: "⚠️ Systemnedbrud! Booking-systemet gik ned mandag morgen. Løs kapaciteten for at AFVÆRGE slangen!", ex: "Retning: Hvorfor overbelastede forespørgslerne serveren?" }
+        ],
+        normalPool: [
+          { title: "Medlemsdata", desc: "Hvilke data skal QR-koden i medlemmets telefon indeholde for at åbne døren?", ex: "Retning: Medlems-ID, gyldighedsdato og aktiv status." },
+          { title: "Dekomponering", desc: "Opdel holdbooking-processen i FitLife i 3 klare delkomponenter.", ex: "Retning: Booking -> Venteliste-håndtering -> Tjek-ind ved fremmøde." },
+          { title: "Abstraktion", desc: "Hvilke medlemsdata skal udelades ved døren for at sikre hurtig scanning?", ex: "Retning: Døren har kun brug for Sandt/Falsk for adgang – ikke adresse." },
+          { title: "Booking-UI", desc: "Design skærmbilledet hvor medlemmet booker et indoor-cycling hold.", ex: "Retning: Tydelige ledige pladser og 1-klik afbestilling." },
+          { title: "No-Show Algoritme", desc: "Opsæt regel (IF/THEN) for sanktionering hvis et medlem glemmer at dukke op.", ex: "Retning: IF (Fremmøde == Falsk) THEN (Gebyr = 30 kr.)." },
+          { title: "Persondata & GDPR", desc: "Hvordan beskyttes medlemmers helbredsoplysninger og træningshistorik?", ex: "Retning: Adgangskontrol så kun relevante medarbejdere kan se data." },
+          { title: "Belastningstest", desc: "Hvad sker der hvis 100 medlemmer scanner QR-koden på samme sekund kl. 17:00?", ex: "Retning: Lokal caching i svingdøren hvis internettet slår fejl." },
+          { title: "Skalering", desc: "Hvordan tilføjes et 24/7 ubemandet koncept til centeret?", ex: "Retning: Integration mellem videoovervågning og adgangslog." }
+        ]
+      },
+      clinic: {
+        name: "MedCare Klinikken (Sundhed)",
+        desc: "Case: MedCare Klinikken (Patient-Booking & GDPR)",
+        start: { title: "Start: Telefon-flaskehals", desc: "Hvorfor opstår der kasserne og telefonerne overbelastede i lægehuset hver morgen?", ex: "Retning: Manuelle tidsbestillinger tager lang tid pr. patient over telefon." },
+        goal: { title: "🏆 Mål: Sikker Digital Klinik", desc: "Præsenter den samlede patientportal og GDPR-arkitektur for MedCare.", ex: "Vinderfelt: Vis det samlede overblik." },
+        ladders: [
+          { title: "🪜 Stige: Digital Sejr", desc: "Patienterne tager selv systemet i brug! Begrund succesen for at rykke frem.", ex: "Retning: Hvorfor lettede det telefonkøen?" },
+          { title: "🪜 Stige: SMS-Automation", desc: "Automatiske påmindelser reducerer udeblivelser! Begrund succesen.", ex: "Retning: Hvorfor virkede denne logik?" },
+          { title: "🪜 Stige: Sundheds-Godkendelse", desc: "Regionen godkender det sikre system! Begrund GDPR-sikkerheden.", ex: "Retning: Præsenter det samlede overblik." }
+        ],
+        snakes: [
+          { title: "🐍 Slange: Journal-Fejl", desc: "⚠️ Systemfejl! Forkert patientdata blev knyttet til en journal. Beskriv valideringen for at AFVÆRGE slangen!", ex: "Retning: Hvor opstod svigtet i dataindsamlingen?" },
+          { title: "🐍 Slange: GDPR-Brud", desc: "⚠️ Sikkerhedsbrud! En uautoriseret medarbejder tilgik en journal. Løs adgangskontrollen for at AFVÆRGE slangen!", ex: "Retning: Hvordan strammer I rettighederne i systemet?" },
+          { title: "🐍 Slange: System-Crash", desc: "⚠️ Systemfejl! Bookingdatabasen crashede under opdatering. Beskriv backup-rutinen for at AFVÆRGE slangen!", ex: "Retning: Hvordan genoprettes data uden tab?" }
+        ],
+        normalPool: [
+          { title: "Patientdata", desc: "Hvilke basale oplysninger skal indsamles ved digital tidsbestilling?", ex: "Retning: CPR-nr (valideret), kontakt-tlf og symptombeskrivelse." },
+          { title: "Dekomponering", desc: "Opdel patientens forløb i 3 adskilte digitale faser.", ex: "Retning: NemID/MitID Logind -> Tidsvalg -> Automatisk SMS-påmindelse." },
+          { title: "Abstraktion", desc: "Hvilke følsomme oplysninger må IKKE fremgå i en SMS-påmindelse?", ex: "Retning: Skær diagnoser fra SMS'en af hensyn til privatliv." },
+          { title: "Patient-Portal UI", desc: "Design en brugervenlig skærm til ældre patienter der skal booke tid.", ex: "Retning: Store knapper, høj kontrast og få valgmuligheder." },
+          { title: "Akut-Algoritme", desc: "Opsæt logisk regel (IF/THEN) for hvornår en patient skal henvises til 112 i stedet.", ex: "Retning: IF (Symptom == Brystsmerter) THEN (Vis advarsel: Ring 112)." },
+          { title: "Sikkerhedsaudit", desc: "Hvordan overholdes sundhedslovens strenge kraver til logning af journaler?", ex: "Retning: Uforanderlig audit-log over hvem der har åbnet mappen." },
+          { title: "Fejlhåndtering", desc: "Hvad sker der hvis lægen melder sig syg samme morgen?", ex: "Retning: Automatisk aflysning og ombooking via SMS til dagens patienter." },
+          { title: "Skalering", desc: "Hvordan integreres video-konsultationer i samme bookingsystem?", ex: "Retning: Automatisk generering af sikrede WebRTC-videolinks." }
+        ]
+      }
+    };
+
+    let selectedCaseKey = 'sportshop';
+    let activeTeams = [];
+    let currentTurnIdx = 0;
+    let pendingMovePos = null;
+
+    let timerInterval = null;
+    let timeLeft = 180;
+
+    const teamsConfig = [
+      { id: 1, name: "Hold 1", color: "bg-emerald-500", pos: 1 },
+      { id: 2, name: "Hold 2", color: "bg-blue-500", pos: 1 },
+      { id: 3, name: "Hold 3", color: "bg-rose-500", pos: 1 },
+      { id: 4, name: "Hold 4", color: "bg-amber-500", pos: 1 }
+    ];
+
+    const rolesList = ["Systemarkitekt", "Processpecialist", "Datakonsulent", "Algoritmeansvarlig"];
+    
+    const boardBase = [
+      { id: 1, type: "start" }, { id: 2, type: "normal" },
+      { id: 3, type: "ladder", jump: 7 }, { id: 4, type: "normal" },
+      { id: 5, type: "snake", jump: 2 }, { id: 6, type: "normal" },
+      { id: 7, type: "normal" }, { id: 8, type: "ladder", jump: 12 },
+      { id: 9, type: "normal" }, { id: 10, type: "snake", jump: 6 },
+      { id: 11, type: "normal" }, { id: 12, type: "normal" },
+      { id: 13, type: "snake", jump: 9 }, { id: 14, type: "normal" },
+      { id: 15, type: "ladder", jump: 16 }, { id: 16, type: "goal" }
+    ];
+
+    function selectCase(key) {
+      playClickSound();
+      selectedCaseKey = key;
+      
+      document.querySelectorAll('.case-card').forEach(el => {
+        el.classList.remove('border-indigo-500', 'bg-slate-900/95');
+        el.classList.add('border-slate-700', 'bg-slate-900/40');
+      });
+
+      const selectedEl = document.getElementById(`case-${key}`);
+      if (selectedEl) {
+        selectedEl.classList.remove('border-slate-700', 'bg-slate-900/40');
+        selectedEl.classList.add('border-indigo-500', 'bg-slate-900/95');
+      }
+    }
+
+    function startGame(count) {
+      playClickSound();
+      activeTeams = teamsConfig.slice(0, count).map(t => ({ ...t, pos: 1 }));
+      currentTurnIdx = 0;
+      
+      const currentCase = casesBank[selectedCaseKey];
+      document.getElementById('activeCaseHeader').innerText = currentCase.desc;
+
+      document.getElementById('setupScreen').classList.add('hidden');
+      document.getElementById('gameScreen').classList.remove('hidden');
+      renderBoard();
+      updateTurnUI();
+    }
+
+    function resetGame() {
+      playClickSound();
+      stopTimer();
+      if (confirm("Vil du nulstille spillet og vælge ny case eller hold?")) {
+        document.getElementById('gameScreen').classList.add('hidden');
+        document.getElementById('setupScreen').classList.remove('hidden');
+        document.getElementById('taskModal').classList.add('hidden');
+      }
+    }
+
+    function renderBoard() {
+      const boardEl = document.getElementById('board');
+      boardEl.innerHTML = '';
+      const titles = boardTitles[selectedCaseKey];
+
+      boardBase.forEach(field => {
+        const fieldEl = document.createElement('div');
+        
+        let tileBg = "bg-slate-900 border-slate-800 text-slate-100";
+        if (currentTheme === 'light') tileBg = "bg-white border-slate-300 text-slate-800 shadow-sm";
+        if (currentTheme === 'gray') tileBg = "bg-zinc-900 border-zinc-700 text-zinc-100";
+
+        fieldEl.className = `min-h-[105px] p-2.5 rounded-xl border flex flex-col justify-between relative transition-colors ${tileBg}`;
+
+        if (field.type === 'ladder') fieldEl.classList.add('border-emerald-500/50', currentTheme === 'light' ? 'bg-emerald-50' : 'bg-emerald-950/20');
+        if (field.type === 'snake') fieldEl.classList.add('border-rose-500/50', currentTheme === 'light' ? 'bg-rose-50' : 'bg-rose-950/20');
+        if (field.type === 'goal') fieldEl.classList.add('border-amber-500/60', currentTheme === 'light' ? 'bg-amber-50' : 'bg-amber-950/30');
+
+        let tokensHtml = '<div class="flex flex-wrap gap-1.5 mt-1">';
+        activeTeams.forEach(t => {
+          if (t.pos === field.id) {
+            tokensHtml += `<div class="game-token w-4 h-4 rounded-full ${t.color} border-2 border-white shadow-lg" title="${t.name}"></div>`;
+          }
+        });
+        tokensHtml += '</div>';
+
+        const fieldData = titles[field.id] || { title: "Udfordring", badge: "Algo" };
+        
+        let badgeColor = "bg-indigo-900/60 text-indigo-300 border-indigo-700";
+        if(fieldData.badge === 'Møns') badgeColor = "bg-amber-900/60 text-amber-300 border-amber-700";
+        if(fieldData.badge === 'Abst') badgeColor = "bg-purple-900/60 text-purple-300 border-purple-700";
+        if(fieldData.badge === 'Algo') badgeColor = "bg-emerald-900/60 text-emerald-300 border-emerald-700";
+
+        let indicator = "";
+        if (field.type === 'ladder') indicator = `<span class="text-[10px] text-emerald-500 font-bold">🪜 Stige (#${field.jump})</span>`;
+        if (field.type === 'snake') indicator = `<span class="text-[10px] text-rose-500 font-bold">🐍 Slange (#${field.jump})</span>`;
+        if (field.type === 'goal') indicator = `<span class="text-[10px] text-amber-500 font-bold">🏆 Mål</span>`;
+
+        fieldEl.innerHTML = `
+          <div class="flex justify-between items-start">
+            <span class="text-[10px] font-bold opacity-75">#${field.id}</span>
+            <span class="text-[9px] px-1.5 py-0.5 rounded border font-semibold ${badgeColor}">${fieldData.badge}</span>
+          </div>
+          <div>
+            <div class="text-[11px] font-bold leading-tight line-clamp-2">${fieldData.title}</div>
+            <div class="mt-0.5">${indicator}</div>
+          </div>
+          ${tokensHtml}
+        `;
+        boardEl.appendChild(fieldEl);
+      });
+    }
+
+    function updateTurnUI() {
+      const team = activeTeams[currentTurnIdx];
+      document.getElementById('turnTitle').innerText = `${team.name}`;
+      document.getElementById('turnBadge').className = `w-4 h-4 rounded-full ${team.color}`;
+      
+      const rolesEl = document.getElementById('roleDisplay');
+      let roleCardBg = currentTheme === 'light' ? 'bg-white border-slate-200 text-slate-800' : (currentTheme === 'gray' ? 'bg-zinc-800 border-zinc-700 text-zinc-100' : 'bg-slate-800 border-slate-700 text-slate-100');
+      
+      rolesEl.innerHTML = rolesList.map((r, i) => `
+        <div class="p-2 rounded-lg border shadow-sm transition-colors ${roleCardBg}">
+          <span class="opacity-70 block text-[9px] uppercase font-semibold">Rolle ${i+1}</span>
+          <span class="font-bold text-xs">${r}</span>
+        </div>
+      `).join('');
+    }
+
+    function rotateRoles() {
+      playClickSound();
+      rolesList.push(rolesList.shift());
+      updateTurnUI();
+    }
+
+    function rollDice() {
+      playClickSound();
+      const roll = Math.floor(Math.random() * 6) + 1;
+      document.getElementById('diceResultText').innerText = `🎲 ${roll}`;
+      
+      const team = activeTeams[currentTurnIdx];
+      let newPos = team.pos + roll;
+      if (newPos > 16) newPos = 16;
+      pendingMovePos = newPos;
+
+      // 1. Flyt brikken med det samme, så man kan se den hoppe ind på brættet
+      team.pos = newPos;
+      renderBoard();
+
+      // Deaktiver terningeknappen i 2 sekunder, mens brikken vises på sin nye plads
+      const diceBtn = document.getElementById('diceBtn');
+      if(diceBtn) diceBtn.disabled = true;
+
+      // 2. Vent 2 sekunder før opgavemodulen åbner automatisk
+      setTimeout(() => {
+        if(diceBtn) diceBtn.disabled = false;
+        showTaskModal(newPos, roll);
+      }, 2000);
+    }
+
+    function showTaskModal(fieldId, roll) {
+      const currentCase = casesBank[selectedCaseKey];
+      const baseField = boardBase.find(f => f.id === fieldId);
+      
+      let task;
+      if (baseField.type === 'start') {
+        task = currentCase.start;
+      } else if (baseField.type === 'goal') {
+        task = currentCase.goal;
+      } else if (baseField.type === 'ladder') {
+        const randIdx = Math.floor(Math.random() * currentCase.ladders.length);
+        task = currentCase.ladders[randIdx];
+      } else if (baseField.type === 'snake') {
+        const randIdx = Math.floor(Math.random() * currentCase.snakes.length);
+        task = currentCase.snakes[randIdx];
+      } else {
+        const randIdx = Math.floor(Math.random() * currentCase.normalPool.length);
+        task = currentCase.normalPool[randIdx];
+      }
+
+      document.getElementById('modalFieldNum').innerText = `Felt #${fieldId}`;
+      document.getElementById('modalTitle').innerText = task.title;
+      document.getElementById('modalDesc').innerText = task.desc;
+      document.getElementById('modalExample').innerText = task.ex;
+      document.getElementById('modalDiceBadge').innerText = `🎲 Du slog: ${roll}`;
+
+      const btnPass = document.getElementById('btnPass');
+      const btnFail = document.getElementById('btnFail');
+      const hint = document.getElementById('modalRuleHint');
+
+      if (baseField.type === 'snake') {
+        btnPass.innerText = '✅ Godkendt (Afværg slange)';
+        btnFail.innerText = '❌ Underkendt (Glid ned)';
+        hint.innerText = 'SLANGE-REGEL: Hvis svaret er godkendt, afværges systemfejlen og holdet BLIVER PÅ FELTET! Hvis ikke, glider de ned.';
+      } else if (baseField.type === 'ladder') {
+        btnPass.innerText = `✅ Godkendt (Ryk op til #${baseField.jump})`;
+        btnFail.innerText = '❌ Underkendt (Blev stående)';
+        hint.innerText = 'STIGE-REGEL: Hvis svaret er godkendt, rykker holdet op ad stigen! Hvis ikke, bliver de stående.';
+      } else {
+        btnPass.innerText = '✅ Godkendt (Ryk videre)';
+        btnFail.innerText = '❌ Underkendt (Blev stående)';
+        hint.innerText = 'Når uret rinder ud: Kan holdet begrunde deres løsning fagligt uden logiske bugs?';
+      }
+      
+      startTimer();
+      document.getElementById('taskModal').classList.remove('hidden');
+    }
+
+    function startTimer() {
+      stopTimer();
+      timeLeft = 180;
+      updateTimerDisplay();
+
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+
+        if (timeLeft <= 10 && timeLeft > 0) {
+          playTickSound();
+        }
+
+        if (timeLeft <= 0) {
+          stopTimer();
+          document.getElementById('timerDisplay').innerText = "⏱️ UDLØBET!";
+          document.getElementById('timerDisplay').className = "bg-rose-900 text-rose-200 border border-rose-500 px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1 animate-pulse";
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(timeLeft / 60);
+      const secs = timeLeft % 60;
+      const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      const el = document.getElementById('timerDisplay');
+      
+      if (timeLeft > 0) {
+        el.innerText = `⏱️ ${formatted}`;
+        el.className = timeLeft <= 30 ? "bg-amber-900 text-amber-200 border border-amber-500 px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1" : "bg-slate-900 text-emerald-400 border border-emerald-500/40 px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1";
+      }
+    }
+
+    function resolveTask(approved) {
+      playClickSound();
+      stopTimer();
+      document.getElementById('taskModal').classList.add('hidden');
+      const team = activeTeams[currentTurnIdx];
+      const targetField = boardBase.find(f => f.id === pendingMovePos);
+
+      if (targetField.type === 'snake') {
+        if (approved) {
+          team.pos = pendingMovePos; // Afværget, forbliver på feltet
+        } else {
+          team.pos = targetField.jump; // Glider ned
+        }
+      } else if (targetField.type === 'ladder') {
+        if (approved) {
+          team.pos = targetField.jump; // Rykker op ad stigen
+        } else {
+          team.pos = pendingMovePos; // Bliver stående før stigen
+        }
+      } else {
+        if (approved) {
+          team.pos = pendingMovePos;
+        }
+      }
+
+      renderBoard();
+
+      if (team.pos === 16 && approved) {
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        alert(`🎉 Hurra! ${team.name} har fuldført casen og vundet spillet!`);
+        return;
+      }
+
+      currentTurnIdx = (currentTurnIdx + 1) % activeTeams.length;
+      updateTurnUI();
+    }
+  </script>
+</body>
+</html>
